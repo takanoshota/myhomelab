@@ -4,7 +4,8 @@ all:
     vyos_prefix_wan_eth0: "/24"
     vyos_static_ip_lan_eth1: "192.168.100.1"
     vyos_prefix_lan_eth1: "/24"
-
+    homelab_domain: myhomelab.example.com
+    vyos_subdomain: vyos
   children:
     local:
       hosts: 
@@ -18,8 +19,6 @@ all:
         vlan_id: 100
         virtualgw_VM_name: virtualgateway
         ova_file_path: xxxxxxx.ova
-        homelab_domain: myhomelab.example.com
-        vyos_subdomain: vyos
     vyos:
       hosts:
         vyos.myhomelab.example.com

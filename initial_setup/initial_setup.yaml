@@ -71,6 +71,12 @@
           - address: '{{ vyos_static_ip_lan_eth1 }}{{ vyos_prefix_lan_eth1 }}'
         state: merged
 
+    - name: Override commands with provided configuration
+      vyos.vyos.vyos_hostname:
+        config:
+          hostname: "{{ vyos_subdomain }}.{{ homelab_domain }}"
+        state: overridden
+
     - name: save config
       vyos.vyos.vyos_config:
         save: true
