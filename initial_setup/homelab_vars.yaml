@@ -1,0 +1,30 @@
+all:
+  vars:
+    vyos_static_ip_wan_eth0: "192.168.0.100"
+    vyos_prefix_wan_eth0: "/24"
+    vyos_static_ip_lan_eth1: "192.168.100.1"
+    vyos_prefix_lan_eth1: "/24"
+
+  children:
+    local:
+      hosts: 
+        localhost
+      vars:
+        esxi_hostname: xxxxxxxx
+        esxi_username: xxxx
+        esxi_password: xxxxxxx
+        vswitch_name: vSwitch0
+        portgroup_name: vlan100-portgroup
+        vlan_id: 100
+        virtualgw_VM_name: virtualgateway
+        ova_file_path: xxxxxxx.ova
+        homelab_domain: myhomelab.example.com
+        vyos_subdomain: vyos
+    vyos:
+      hosts:
+        vyos.myhomelab.example.com
+      vars:
+        ansible_user: vyos
+        ansible_password: vyos
+        ansible_connection: network_cli
+        ansible_network_os: vyos

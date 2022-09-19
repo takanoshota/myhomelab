@@ -1,0 +1,116 @@
+- name: Section1
+  hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: false
+  tasks:
+  - name: Add {{ vlan_id }} Portgroup
+    community.vmware.vmware_portgroup:
+      hosts: 
+        - "{{ esxi_hostname }}"
+      hostname: "{{ esxi_hostname }}"
+      username: "{{ esxi_username }}"
+      password: "{{ esxi_password }}"
+      switch: "{{ vswitch_name }}"
+      portgroup: "{{ portgroup_name }}"
+      vlan_id: "{{ vlan_id }}"
+      validate_certs: false
+    delegate_to: localhost
+
+  - name: Deploy ova template 
+    community.vmware.vmware_deploy_ovf:
+      hostname: '{{ esxi_hostname }}'
+      username: '{{ esxi_username }}'
+      password: '{{ esxi_password }}'
+      name: '{{ virtualgw_VM_name }}'
+      networks: "{u'WAN':u'VM Network', 'LAN':u'{{ portgroup_name }}'}"
+      power_on: yes
+      ovf: '{{ ova_file_path }}'
+      validate_certs: false
+      wait_for_ip_address: true
+    delegate_to: localhost
+
+  - name: Gather one specific VM
+    community.vmware.vmware_vm_info:
+      hostname: '{{ esxi_hostname }}'
+      username: '{{ esxi_username }}'
+      password: '{{ esxi_password }}'
+      vm_name: '{{ virtualgw_VM_name }}'
+      validate_certs: false
+    delegate_to: localhost
+    register: vm_info
+
+  - name: cleanup hosts for preventing duplication
+    shell: sed -i '/{{ vyos_subdomain }}/d' /etc/hosts || cat /etc/hosts | grep {{ vyos_subdomain }}.{{ homelab_domain }}
+    register: etc_hosts_before
+    changed_when: no
+
+  - debug:
+      var: etc_hosts_before.stdout 
+
+  - name: add vyos IP address to /etc/hosts
+    shell: echo '{{ vm_info.virtual_machines[0].ip_address }} {{ vyos_subdomain }}.{{ homelab_domain }}' | tee -a /etc/hosts
+    register: etc_hosts_after
+    changed_when: no
+
+  - debug:
+      var: etc_hosts_after.stdout
+
+- name: Section2
+  hosts: vyos
+  gather_facts: false
+  tasks:
+    - name: set static IPs
+      vyos.vyos.vyos_l3_interfaces:
+        config:
+        - name: eth0
+          ipv4:
+          - address: '{{ vyos_static_ip_wan_eth0 }}{{ vyos_prefix_wan_eth0 }}'
+        - name: eth1
+          ipv4:
+          - address: '{{ vyos_static_ip_lan_eth1 }}{{ vyos_prefix_lan_eth1 }}'
+        state: merged
+
+    - name: save config
+      vyos.vyos.vyos_config:
+        save: true
+
+
+- name: Section3
+  hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: false
+  tasks:
+
+    - name: cleanup hosts for preventing duplication
+      shell: sed -i '/{{ vyos_subdomain }}/d' /etc/hosts || cat /etc/hosts | grep {{ vyos_subdomain }}.{{ homelab_domain }}
+      register: etc_hosts_before
+      changed_when: no
+
+    - debug:
+        var: etc_hosts_before.stdout 
+
+    - name: add vyos IP address to /etc/hosts
+      shell: echo '{{ vyos_static_ip_wan_eth0 }} {{ vyos_subdomain }}.{{ homelab_domain }}' | tee -a /etc/hosts
+      register: etc_hosts_after
+      changed_when: no
+
+- name: Section4
+  hosts: vyos
+  gather_facts: false
+  tasks:
+    - name: set static IPs
+      vyos.vyos.vyos_l3_interfaces:
+        config:
+        - name: eth0
+          ipv4:
+          - address: '{{ vyos_static_ip_wan_eth0 }}{{ vyos_prefix_wan_eth0 }}'
+        - name: eth1
+          ipv4:
+          - address: '{{ vyos_static_ip_lan_eth1 }}{{ vyos_prefix_lan_eth1 }}'
+        state: replaced
+
+    - name: save config
+      vyos.vyos.vyos_config:
+        save: true
