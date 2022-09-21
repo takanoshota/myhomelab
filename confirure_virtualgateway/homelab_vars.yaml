@@ -1,0 +1,44 @@
+all:
+  vars:
+    vyos_static_ip_wan_eth0: "192.168.0.100"
+    vyos_network_address_wan: "192.168.0.0"
+    vyos_prefix_wan_eth0: "/24"
+    vyos_static_ip_lan_eth1: "192.168.100.1"
+    vyos_network_address_lan: "192.168.100.0"
+    vyos_prefix_lan_eth1: "/24"
+    homelab_domain: myhomelab.example.com
+    vyos_subdomain: vyos
+    internet_nameserver: "8.8.8.8"
+    homelab_default_gw: "192.168.11.1" 
+    dhcp_server_range_start: "192.168.100.10"
+    dhcp_server_range_end: "192.168.100.250"
+  children:
+    local:
+      hosts: 
+        localhost
+      vars:
+        esxi_hostname: xxxxxx
+        esxi_username: xxxxxx
+        esxi_password: xxxxxx
+        vswitch_name: vSwitch0
+        portgroup_name: vlan100-portgroup
+        vlan_id: 100
+        virtualgw_VM_name: virtualgateway
+        test_VM_name: test-vm
+        ova_file_path: xxxxxx
+        test_vm_ova_file_path: xxxxxx
+    vyos:
+      hosts:
+        vyos.myhomelab.example.com
+      vars:
+        ansible_user: vyos
+        ansible_password: vyos
+        ansible_connection: network_cli
+        ansible_network_os: vyos
+        vyos_time_zone: xxxxxx
+    testvm:
+      hosts:
+        tmp.myhomelab.example.com
+      vars:
+        ansible_user: xxxxxx
+        ansible_password: xxxxxx

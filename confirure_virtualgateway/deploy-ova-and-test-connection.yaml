@@ -1,0 +1,74 @@
+- name: Deploy TestVM
+  hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: false
+  tasks:
+  - name: Deploy ova template for test VM
+    community.vmware.vmware_deploy_ovf:
+      hostname: '{{ esxi_hostname }}'
+      username: '{{ esxi_username }}'
+      password: '{{ esxi_password }}'
+      name: '{{ test_VM_name }}'
+      networks: "{u'{{portgroup_name}}':u'{{portgroup_name}}'}"
+      power_on: yes
+      ovf: '{{ test_vm_ova_file_path }}'
+      validate_certs: false
+      wait_for_ip_address: true
+    delegate_to: localhost
+
+  - name: Gather one specific VM
+    community.vmware.vmware_vm_info:
+      hostname: '{{ esxi_hostname }}'
+      username: '{{ esxi_username }}'
+      password: '{{ esxi_password }}'
+      vm_name: '{{ test_VM_name }}'
+      validate_certs: false
+    delegate_to: localhost
+    register: vm_info
+
+  - debug:
+      var: vm_info.virtual_machines[0].ip_address
+
+  - name: cleanup hosts for preventing duplication
+    shell: sed -i '/{{ vyos_subdomain }}/d' /etc/hosts || cat /etc/hosts | grep tmp.{{ homelab_domain }}
+    register: etc_hosts_before
+    changed_when: no
+
+  - name: add testVM IP address
+    shell: echo '{{ vm_info.virtual_machines[0].ip_address }} tmp.{{ homelab_domain }}' | tee -a /etc/hosts
+    register: etc_hosts_after
+    changed_when: no
+
+
+- name: Test Connection
+  hosts: testvm
+  gather_facts: false
+  tasks:
+    - name: ping to default gw
+      shell: ping -c 1 {{ vyos_static_ip_lan_eth1 }}
+      register: ping_to_default_gw
+    - name: ping to internet
+      shell: ping -c 1 8.8.8.8
+      register: ping_to_internet
+    - name: ping to internet through nameresolution
+      shell: ping -c 1 www.google.com
+      register: ping_to_internet_DNS
+    - debug:
+       var: ping_to_default_gw.stdout
+    - debug:
+       var: ping_to_internet.stdout
+    - debug:
+       var: ping_to_internet_DNS.stdout
+
+
+- name: Cleanup
+  hosts: localhost
+  connection: local
+  become: yes
+  gather_facts: false
+  tasks:
+  - name: cleanup hosts for preventing duplication
+    shell: sed -i '/tmp/d' /etc/hosts || cat /etc/hosts | grep tmp.{{ homelab_domain }}
+    register: etc_hosts_before
+    changed_when: no

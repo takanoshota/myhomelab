@@ -1,0 +1,44 @@
+- name: Section1
+  hosts: vyos
+  gather_facts: false
+  tasks:
+    - name: set timezone and nameserver
+      vyos.vyos.vyos_command:
+        commands:
+        - configure
+        - set system time-zone {{ vyos_time_zone }}
+        - set system name-server {{ internet_nameserver }}
+        - set protocols static route 0.0.0.0/0 next-hop {{homelab_default_gw}}
+        - commit
+    - name: configure snat
+      vyos.vyos.vyos_command:
+        commands:
+        - configure
+        - set nat source rule 1 outbound-interface 'eth0'
+        - set nat source rule 1 source address '{{ vyos_network_address_lan }}{{ vyos_prefix_lan_eth1 }}'
+        - set nat source rule 1 translation address masquerade
+        - commit        
+    - name: configure dhcp-server
+      vyos.vyos.vyos_command:
+        commands:
+        - configure
+        - set service dhcp-server listen-address {{vyos_static_ip_lan_eth1}}
+        - set service dhcp-server shared-network-name homelab subnet {{vyos_network_address_lan}}{{vyos_prefix_lan_eth1}} range 1 start {{ dhcp_server_range_start }}
+        - set service dhcp-server shared-network-name homelab subnet {{vyos_network_address_lan}}{{vyos_prefix_lan_eth1}} range 1 stop {{ dhcp_server_range_end }}
+        - set service dhcp-server shared-network-name homelab subnet {{vyos_network_address_lan}}{{vyos_prefix_lan_eth1}} lease 86400
+        - set service dhcp-server shared-network-name homelab subnet {{vyos_network_address_lan}}{{vyos_prefix_lan_eth1}} name-server {{vyos_static_ip_lan_eth1}}
+        - set service dhcp-server shared-network-name homelab subnet {{vyos_network_address_lan}}{{vyos_prefix_lan_eth1}} default-router {{vyos_static_ip_lan_eth1}}
+        - set service dhcp-server shared-network-name homelab authoritative
+        - commit
+    - name: configure dns_forwarding
+      vyos.vyos.vyos_command:
+        commands:
+        - configure
+        - set service dns forwarding system 
+        - set service dns forwarding listen-address {{vyos_static_ip_lan_eth1}}
+        - set service dns forwarding listen-address '{{ vyos_static_ip_lan_eth1 }}'
+        - set service dns forwarding allow-from '{{ vyos_network_address_lan }}{{vyos_prefix_wan_eth0}}'
+        - commit
+    - name: save config
+      vyos.vyos.vyos_config:
+        save: true
